@@ -95,12 +95,22 @@ def recent(films=3):
 
 def download(prefix):
     slug = PACKS[prefix][0]
-    page = urllib.request.urlopen(urllib.request.Request(f"https://kenney.nl/assets/{slug}", headers={"User-Agent": UA}),
+    page_url = f"https://kenney.nl/assets/{slug}"
+    page = urllib.request.urlopen(urllib.request.Request(page_url, headers={"User-Agent": UA}),
                                   timeout=30).read().decode("utf-8", "replace")
     m = re.search(r'https://kenney\.nl/media/pages/assets/[^"]+\.zip', page)
-    if not m:
-        raise RuntimeError(f"no download link on kenney.nl/assets/{slug}")
-    data = urllib.request.urlopen(urllib.request.Request(m[0], headers={"User-Agent": UA}), timeout=120).read()
+    if m:                                     # older pages: the zip is linked directly
+        url = m[0]
+    else:                                     # current pages: "Continue without donating" asks for a signed, expiring link
+        d = re.search(r"data-download-id=['\"]([0-9a-f]+)['\"]", page)
+        if not d:
+            raise RuntimeError(f"no download link on {page_url}")
+        req = urllib.request.Request(f"https://kenney.nl/download-link/{d[1]}", headers={"User-Agent": UA, "Referer": page_url})
+        url = json.loads(urllib.request.urlopen(req, timeout=30).read().decode("utf-8", "replace")).get("url")
+        if not url:
+            raise RuntimeError(f"kenney.nl gave no signed download link for {page_url}")
+    data = urllib.request.urlopen(urllib.request.Request(url, headers={"User-Agent": UA, "Referer": page_url}),
+                                  timeout=120).read()
     dest = CACHE / "kenney" / slug
     with zipfile.ZipFile(io.BytesIO(data)) as z:
         for name in z.namelist():
