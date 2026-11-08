@@ -301,6 +301,14 @@ def guard_off():
         except OSError:
             pass
         d = os.path.dirname(d)
+    # The film can sit outside the chat's folder (a films folder beside the project the chat opened in): the trace is
+    # then keyed to a folder that is neither this one nor above it. The hook writes its trace just before every shell
+    # command it lets through, this one included, so a trace from the minute before this process started proves it.
+    try:
+        if any(STARTED - 60 <= p.stat().st_mtime <= STARTED + 5 for p in seen.iterdir()):
+            return ""
+    except OSError:
+        pass
     return ("GUARD OFF: the cinecode guard has not run in this Claude Code session, so the kit's checks will not hold. "
             "Its hooks need Node.js and Python (on Windows: Python from python.org), then a new session. Tell the user in "
             "one line before going on.")
