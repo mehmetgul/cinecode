@@ -197,7 +197,14 @@ def films_folder(cwd, name):
     for cand in dict.fromkeys((name, "Filmler", "Films")):
         if os.path.isdir(os.path.join(cwd, cand)):
             return os.path.join(cwd, cand)
-    empty = lambda p: os.path.isdir(p) and all(empty(os.path.join(p, e)) for e in os.listdir(p) if not e.startswith("."))
+    def empty(p):
+        if not os.path.isdir(p):
+            return False
+        try:
+            names = os.listdir(p)
+        except OSError:                       # unreadable (Windows "Application Data" and other home junctions): content
+            return False
+        return all(empty(os.path.join(p, e)) for e in names if not e.startswith("."))
     entries = [e for e in os.listdir(cwd) if not e.startswith(".") and not empty(os.path.join(cwd, e))
                and not predealt(os.path.join(cwd, e))]           # a hand dealt for the film about to be set up
     if is_film(cwd) or film_above(cwd) or all(os.path.isdir(os.path.join(cwd, e)) and is_film(os.path.join(cwd, e))
